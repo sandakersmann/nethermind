@@ -131,7 +131,6 @@ namespace Nethermind.Runner
 
             app.OnExecute(async () =>
             {
-                _appClosed.Reset();
                 IConfigProvider configProvider = BuildConfigProvider(app, loggerConfigSource, logLevelOverride, configsDirectory, configFile);
                 IInitConfig initConfig = configProvider.GetConfig<IInitConfig>();
                 IKeyStoreConfig keyStoreConfig = configProvider.GetConfig<IKeyStoreConfig>();
@@ -175,6 +174,7 @@ namespace Nethermind.Runner
                 INethermindApi nethermindApi = apiBuilder.Create(plugins.OfType<IConsensusPlugin>());
                 ((List<INethermindPlugin>)nethermindApi.Plugins).AddRange(plugins);
 
+                _appClosed.Reset();
                 EthereumRunner ethereumRunner = new(nethermindApi);
                 bool runFailed = false;
                 try
@@ -202,8 +202,19 @@ namespace Nethermind.Runner
                 return 0;
             });
 
-            _ = app.Execute(args);
-            _appClosed.Wait();
+            try
+            {
+                Environment.ExitCode = app.Execute(args);
+            }
+            catch (Exception)
+            {
+                Environment.ExitCode = -1;
+                throw;
+            }
+            finally
+            {
+                _appClosed.Wait();
+            }
         }
 
         private static void BuildOptionsFromConfigFiles(CommandLineApplication app)
