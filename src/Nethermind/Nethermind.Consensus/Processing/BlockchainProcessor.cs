@@ -528,10 +528,11 @@ namespace Nethermind.Consensus.Processing
             }
 
             if (_logger.IsTrace)
-                _logger.Trace($"Processing {blocksToProcess.Count} blocks from state root {processingBranch.Root}");
+                _logger.Trace($"Processing {blocksToProcess.Count} blocks from state root {processingBranch.Root}, Stacktrace: {new StackTrace()}");
             for (int i = 0; i < blocksToProcess.Count; i++)
             {
                 /* this can happen if the block was loaded as an ancestor and did not go through the recovery queue */
+                if (_logger.IsTrace) _logger.Trace($"Recovering data for block {blocksToProcess[i].Hash}");
                 _recoveryStep.RecoverData(blocksToProcess[i]);
             }
         }
