@@ -8,7 +8,6 @@ using Nethermind.Core;
 using Nethermind.Core.Crypto;
 using Nethermind.Consensus.Processing;
 using Nethermind.Consensus.Rewards;
-using Nethermind.Consensus.Tracing;
 using Nethermind.Db;
 using Nethermind.Logging;
 using Nethermind.Synchronization.Peers;
@@ -30,11 +29,11 @@ namespace Nethermind.Hive
         }
 
         public string Name => "Hive";
-        
+
         public string Description => "Plugin used for executing Hive Ethereum Tests";
-        
+
         public string Author => "Nethermind";
-        
+
         public Task Init(INethermindApi api)
         {
             _api = api ?? throw new ArgumentNullException(nameof(api));
@@ -69,10 +68,11 @@ namespace Nethermind.Hive
         }
 
         public async Task InitRpcModules()
-        { 
+        {
             if (Enabled)
             {
                 if (_api.BlockTree == null) throw new ArgumentNullException(nameof(_api.BlockTree));
+                if (_api.BlockProcessingQueue == null) throw new ArgumentNullException(nameof(_api.BlockProcessingQueue));
                 if (_api.ReceiptStorage == null) throw new ArgumentNullException(nameof(_api.ReceiptStorage));
                 if (_api.SpecProvider == null) throw new ArgumentNullException(nameof(_api.SpecProvider));
                 if (_api.DbProvider == null) throw new ArgumentNullException(nameof(_api.DbProvider));
@@ -96,20 +96,17 @@ namespace Nethermind.Hive
                     _api.SpecProvider,
                     _api.LogManager);
 
-                Tracer tracer = new(chainProcessingEnv.StateProvider, chainProcessingEnv.ChainProcessor,
-                    ProcessingOptions.DoNotUpdateHead | ProcessingOptions.ReadOnlyChain);
-
                 HiveRunner hiveRunner = new(
                     _api.BlockTree,
+                    _api.BlockProcessingQueue,
                     _api.ConfigProvider,
                     _api.LogManager.GetClassLogger(),
                     _api.FileSystem,
-                    _api.BlockValidator,
-                    tracer
+                    _api.BlockValidator
                 );
-                
+
                 if (_logger.IsInfo) _logger.Info("Hive is starting");
-                
+
                 await hiveRunner.Start(_disposeCancellationToken.Token);
             }
             else

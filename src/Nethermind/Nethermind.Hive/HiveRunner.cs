@@ -23,11 +23,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Nethermind.Blockchain;
 using Nethermind.Config;
-using Nethermind.Consensus.Tracing;
+using Nethermind.Consensus.Processing;
 using Nethermind.Consensus.Validators;
 using Nethermind.Core;
 using Nethermind.Core.Extensions;
-using Nethermind.Evm.Tracing;
 using Nethermind.Logging;
 using Nethermind.Serialization.Rlp;
 
@@ -36,29 +35,27 @@ namespace Nethermind.Hive
     public class HiveRunner
     {
         private readonly IBlockTree _blockTree;
+        private readonly IBlockProcessingQueue _blockProcessingQueue;
         private readonly ILogger _logger;
         private readonly IConfigProvider _configurationProvider;
         private readonly IFileSystem _fileSystem;
         private readonly IBlockValidator _blockValidator;
-        private readonly ITracer _tracer;
-        private SemaphoreSlim _resetEvent;
+        private readonly SemaphoreSlim _resetEvent;
 
         public HiveRunner(
             IBlockTree blockTree,
+            IBlockProcessingQueue  blockProcessingQueue,
             IConfigProvider configurationProvider,
             ILogger logger,
             IFileSystem fileSystem,
-            IBlockValidator blockValidator,
-            ITracer tracer)
+            IBlockValidator blockValidator)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _blockTree = blockTree ?? throw new ArgumentNullException(nameof(blockTree));
-            _configurationProvider =
-                configurationProvider ?? throw new ArgumentNullException(nameof(configurationProvider));
+            _blockProcessingQueue = blockProcessingQueue ?? throw new ArgumentNullException(nameof(blockProcessingQueue));
+            _configurationProvider = configurationProvider ?? throw new ArgumentNullException(nameof(configurationProvider));
             _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
             _blockValidator = blockValidator;
-            _tracer = tracer;
-
 
             _resetEvent = new SemaphoreSlim(0);
         }
@@ -66,21 +63,23 @@ namespace Nethermind.Hive
         public async Task Start(CancellationToken cancellationToken)
         {
             if (_logger.IsInfo) _logger.Info("HIVE initialization started");
-            _blockTree.BlockAddedToMain += BlockTreeOnBlockAddedToMain;
+            _blockProcessingQueue.BlockRemoved += BlockProcessingFinished;
             IHiveConfig hiveConfig = _configurationProvider.GetConfig<IHiveConfig>();
 
             ListEnvironmentVariables();
             await InitializeBlocks(hiveConfig.BlocksDir, cancellationToken);
             await InitializeChain(hiveConfig.ChainFile);
 
-            _blockTree.BlockAddedToMain -= BlockTreeOnBlockAddedToMain;
+            _blockProcessingQueue.BlockRemoved -= BlockProcessingFinished;
 
             if (_logger.IsInfo) _logger.Info("HIVE initialization completed");
         }
 
-        private void BlockTreeOnBlockAddedToMain(object? sender, BlockEventArgs e)
+        private void BlockProcessingFinished(object? sender, BlockHashEventArgs e)
         {
-            _logger.Info($"HIVE block added to main: {e.Block.ToString(Block.Format.Short)}");
+            _logger.Info(e.ProcessingResult == ProcessingResult.Success
+                ? $"HIVE block added to main: {e.BlockHash}"
+                : $"HIVE block skipped: {e.BlockHash}");
             _resetEvent.Release(1);
         }
 
