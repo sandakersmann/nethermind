@@ -286,19 +286,27 @@ namespace Nethermind.Consensus.Processing
                     if (_logger.IsTrace) _logger.Trace($"Processing block {block.ToString(Block.Format.Short)}).");
                     _stats.Start();
 
-                    Block processedBlock = Process(block, blockRef.ProcessingOptions, _compositeBlockTracer.GetTracer());
-                    _logger.Info($"HIVE processed block {processedBlock}");
+                    try
+                    {
+                        Block processedBlock = Process(block, blockRef.ProcessingOptions, _compositeBlockTracer.GetTracer());
+                        _logger.Info($"HIVE processed block {processedBlock}");
 
-                    if (processedBlock is null)
-                    {
-                        if (_logger.IsTrace) _logger.Trace($"Failed / skipped processing {block.ToString(Block.Format.Full)}");
-                        BlockRemoved?.Invoke(this, new BlockHashEventArgs(blockRef.BlockHash, ProcessingResult.ProcessingError));
+                        if (processedBlock is null)
+                        {
+                            if (_logger.IsTrace) _logger.Trace($"Failed / skipped processing {block.ToString(Block.Format.Full)}");
+                            BlockRemoved?.Invoke(this, new BlockHashEventArgs(blockRef.BlockHash, ProcessingResult.ProcessingError));
+                        }
+                        else
+                        {
+                            if (_logger.IsTrace) _logger.Trace($"Processed block {block.ToString(Block.Format.Full)}");
+                            _stats.UpdateStats(block, _recoveryQueue.Count, _blockQueue.Count);
+                            BlockRemoved?.Invoke(this, new BlockHashEventArgs(blockRef.BlockHash, ProcessingResult.Success));
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        if (_logger.IsTrace) _logger.Trace($"Processed block {block.ToString(Block.Format.Full)}");
-                        _stats.UpdateStats(block, _recoveryQueue.Count, _blockQueue.Count);
-                        BlockRemoved?.Invoke(this, new BlockHashEventArgs(blockRef.BlockHash, ProcessingResult.Success));
+                        _logger.Info($"HIVE processed block with exception {ex}");
+
                     }
                 }
                 catch (Exception exception)
@@ -534,7 +542,16 @@ namespace Nethermind.Consensus.Processing
             {
                 /* this can happen if the block was loaded as an ancestor and did not go through the recovery queue */
                 if (_logger.IsTrace) _logger.Trace($"Recovering data for block {blocksToProcess[i].Hash}");
-                _recoveryStep.RecoverData(blocksToProcess[i]);
+                try
+                {
+                    _recoveryStep.RecoverData(blocksToProcess[i]);
+                    _logger.Info($"HIVE Recovered data for block {blocksToProcess[i].Hash}");
+
+                }
+                catch (Exception ex)
+                {
+                    _logger.Info($"HIVE exception when recovering data: {ex}");
+                }
             }
         }
 

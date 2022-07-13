@@ -80,7 +80,9 @@ namespace Nethermind.Hive
             _logger.Info(e.ProcessingResult == ProcessingResult.Success
                 ? $"HIVE block added to main: {e.BlockHash}"
                 : $"HIVE block skipped: {e.BlockHash}");
+            _logger.Info($"HIVE semaphore pre release. sem count: {_resetEvent.CurrentCount}");
             _resetEvent.Release(1);
+            _logger.Info($"HIVE semaphore post release. sem count: {_resetEvent.CurrentCount}");
         }
 
         private void ListEnvironmentVariables()
@@ -197,9 +199,15 @@ namespace Nethermind.Hive
 
         private async Task WaitForBlockProcessing(SemaphoreSlim semaphore)
         {
+            _logger.Info($"HIVE in WaitForBlockProcessing pre loop. sem count: {semaphore.CurrentCount}");
             if (!await semaphore.WaitAsync(5000))
             {
+                _logger.Info($"HIVE in WaitForBlockProcessing throwing. sem count: {semaphore.CurrentCount}");
                 throw new InvalidOperationException();
+            }
+            else
+            {
+                _logger.Info($"HIVE in WaitForBlockProcessing waited successful. sem count: {semaphore.CurrentCount}");
             }
         }
 
