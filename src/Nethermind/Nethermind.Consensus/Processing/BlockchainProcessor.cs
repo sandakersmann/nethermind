@@ -289,7 +289,8 @@ namespace Nethermind.Consensus.Processing
                     try
                     {
                         Block processedBlock = Process(block, blockRef.ProcessingOptions, _compositeBlockTracer.GetTracer());
-                        _logger.Info($"HIVE processed block {processedBlock}");
+                        _logger.Info($"HIVE processed block in RunProcessingLoop.");
+                        _logger.Info($"HIVE processed block in RunProcessingLoop: {processedBlock}");
 
                         if (processedBlock is null)
                         {
@@ -370,9 +371,13 @@ namespace Nethermind.Consensus.Processing
                 PrepareBlocksToProcess(suggestedBlock, options, processingBranch);
 
                 _stopwatch.Restart();
+                _logger.Info($"HIVE BlockchainProcessor.Process before ProcessBranch");
                 Block[]? processedBlocks = ProcessBranch(processingBranch, options, tracer);
+                _logger.Info($"HIVE BlockchainProcessor.Process after ProcessBranch");
+
                 if (processedBlocks == null)
                 {
+                    _logger.Info($"HIVE BlockchainProcessor.Process processedBlocks NULL");
                     return null;
                 }
 
