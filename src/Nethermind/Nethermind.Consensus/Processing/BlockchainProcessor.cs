@@ -473,6 +473,7 @@ namespace Nethermind.Consensus.Processing
 
         private Block[]? ProcessBranch(ProcessingBranch processingBranch, ProcessingOptions options, IBlockTracer tracer)
         {
+            _logger.Info($"HIVE in ProcessBranch");
             void DeleteInvalidBlocks(Keccak invalidBlockHash)
             {
                 for (int i = 0; i < processingBranch.BlocksToProcess.Count; i++)
@@ -489,14 +490,20 @@ namespace Nethermind.Consensus.Processing
             Block[]? processedBlocks;
             try
             {
+                _logger.Info($"HIVE in ProcessBranch before Process");
+
                 processedBlocks = _blockProcessor.Process(
                     processingBranch.Root,
                     processingBranch.BlocksToProcess,
                     options,
                     tracer);
+                _logger.Info($"HIVE in ProcessBranch after Process");
+
             }
             catch (InvalidBlockException ex)
             {
+                _logger.Info($"HIVE in ProcessBranch with exception: {ex}");
+
                 InvalidBlock?.Invoke(this, new IBlockchainProcessor.InvalidBlockEventArgs
                 {
                     InvalidBlockHash = ex.InvalidBlockHash,
@@ -528,7 +535,11 @@ namespace Nethermind.Consensus.Processing
             {
                 if (invalidBlockHash is not null && !options.ContainsFlag(ProcessingOptions.ReadOnlyChain))
                 {
+                    _logger.Info($"HIVE in ProcessBranch deleting block");
+
                     DeleteInvalidBlocks(invalidBlockHash);
+                    _logger.Info($"HIVE in ProcessBranch deleted block");
+
                 }
             }
 
