@@ -215,12 +215,17 @@ namespace Nethermind.Consensus.Processing
             if (_logger.IsTrace) _logger.Trace($"Processing block {suggestedBlock.ToString(Block.Format.Short)} ({options})");
 
             ApplyDaoTransition(suggestedBlock);
+            if (_logger.IsTrace) _logger.Trace($"Processing block after ApplyDaoTransition");
             Block block = PrepareBlockForProcessing(suggestedBlock);
+            if (_logger.IsTrace) _logger.Trace($"Processing block after PrepareBlockForProcessing");
             TxReceipt[] receipts = ProcessBlock(block, blockTracer, options);
+            if (_logger.IsTrace) _logger.Trace($"Processing block after ProcessBlock");
             ValidateProcessedBlock(suggestedBlock, options, block, receipts);
+            if (_logger.IsTrace) _logger.Trace($"Processing block after ValidateProcessedBlock");
             if (options.ContainsFlag(ProcessingOptions.StoreReceipts))
             {
                 StoreTxReceipts(block, receipts);
+                if (_logger.IsTrace) _logger.Trace($"Processing block after StoreTxReceipts");
             }
 
             return (block, receipts);
