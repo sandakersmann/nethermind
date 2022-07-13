@@ -341,74 +341,94 @@ namespace Nethermind.Consensus.Processing
 
         public Block? Process(Block suggestedBlock, ProcessingOptions options, IBlockTracer tracer)
         {
-            if (!RunSimpleChecksAheadOfProcessing(suggestedBlock, options))
+            try
             {
-                return null;
+                if (!RunSimpleChecksAheadOfProcessing(suggestedBlock, options))
+                {
+                    return null;
+                }
+
+                UInt256 totalDifficulty = suggestedBlock.TotalDifficulty ?? 0;
+                if (_logger.IsTrace)
+                    _logger.Trace(
+                        $"Total difficulty of block {suggestedBlock.ToString(Block.Format.Short)} is {totalDifficulty}");
+
+                bool shouldProcess =
+                    suggestedBlock.IsGenesis
+                    || _blockTree.IsBetterThanHead(suggestedBlock.Header)
+                    || options.ContainsFlag(ProcessingOptions.ForceProcessing);
+
+                if (!shouldProcess)
+                {
+                    if (_logger.IsDebug)
+                        _logger.Debug(
+                            $"Skipped processing of {suggestedBlock.ToString(Block.Format.FullHashAndNumber)}, Head = {_blockTree.Head?.Header?.ToString(BlockHeader.Format.Short)}, total diff = {totalDifficulty}, head total diff = {_blockTree.Head?.TotalDifficulty}");
+                    return null;
+                }
+
+                ProcessingBranch processingBranch = PrepareProcessingBranch(suggestedBlock, options);
+                PrepareBlocksToProcess(suggestedBlock, options, processingBranch);
+
+                _stopwatch.Restart();
+                Block[]? processedBlocks = ProcessBranch(processingBranch, options, tracer);
+                if (processedBlocks == null)
+                {
+                    return null;
+                }
+
+                Block? lastProcessed = null;
+                if (processedBlocks.Length > 0)
+                {
+                    lastProcessed = processedBlocks[^1];
+                    if (_logger.IsTrace)
+                        _logger.Trace(
+                            $"Setting total on last processed to {lastProcessed.ToString(Block.Format.Short)}");
+                    lastProcessed.Header.TotalDifficulty = suggestedBlock.TotalDifficulty;
+                }
+                else
+                {
+                    if (_logger.IsDebug)
+                        _logger.Debug(
+                            $"Skipped processing of {suggestedBlock.ToString(Block.Format.FullHashAndNumber)}, last processed is null: {true}, processedBlocks.Length: {processedBlocks.Length}");
+                }
+
+                bool updateHead = !options.ContainsFlag(ProcessingOptions.DoNotUpdateHead);
+                if (updateHead)
+                {
+                    if (_logger.IsTrace)
+                        _logger.Trace($"Updating main chain: {lastProcessed}, blocks count: {processedBlocks.Length}");
+                    _blockTree.UpdateMainChain(processingBranch.Blocks, true);
+                }
+
+                bool notReadOnlyChain = !options.ContainsFlag(ProcessingOptions.ReadOnlyChain);
+                if (notReadOnlyChain)
+                {
+                    Metrics.LastBlockProcessingTimeInMs = _stopwatch.ElapsedMilliseconds;
+                }
+
+                if ((options & ProcessingOptions.MarkAsProcessed) == ProcessingOptions.MarkAsProcessed)
+                {
+                    if (_logger.IsTrace)
+                        _logger.Trace(
+                            $"Marked blocks as processed {lastProcessed}, blocks count: {processedBlocks.Length}");
+                    _blockTree.MarkChainAsProcessed(processingBranch.Blocks);
+
+                    Metrics.LastBlockProcessingTimeInMs = _stopwatch.ElapsedMilliseconds;
+                }
+
+                if (!notReadOnlyChain)
+                {
+                    _stats.UpdateStats(lastProcessed, _recoveryQueue.Count, _blockQueue.Count);
+                }
+
+                return lastProcessed;
+            }
+            catch (Exception ex)
+            {
+                _logger.Info($"HIVE exception in BlockchainProcessor.Process: {ex}");
             }
 
-            UInt256 totalDifficulty = suggestedBlock.TotalDifficulty ?? 0;
-            if (_logger.IsTrace) _logger.Trace($"Total difficulty of block {suggestedBlock.ToString(Block.Format.Short)} is {totalDifficulty}");
-
-            bool shouldProcess =
-                suggestedBlock.IsGenesis
-                || _blockTree.IsBetterThanHead(suggestedBlock.Header)
-                || options.ContainsFlag(ProcessingOptions.ForceProcessing);
-
-            if (!shouldProcess)
-            {
-                if (_logger.IsDebug) _logger.Debug($"Skipped processing of {suggestedBlock.ToString(Block.Format.FullHashAndNumber)}, Head = {_blockTree.Head?.Header?.ToString(BlockHeader.Format.Short)}, total diff = {totalDifficulty}, head total diff = {_blockTree.Head?.TotalDifficulty}");
-                return null;
-            }
-
-            ProcessingBranch processingBranch = PrepareProcessingBranch(suggestedBlock, options);
-            PrepareBlocksToProcess(suggestedBlock, options, processingBranch);
-
-            _stopwatch.Restart();
-            Block[]? processedBlocks = ProcessBranch(processingBranch, options, tracer);
-            if (processedBlocks == null)
-            {
-                return null;
-            }
-
-            Block? lastProcessed = null;
-            if (processedBlocks.Length > 0)
-            {
-                lastProcessed = processedBlocks[^1];
-                if (_logger.IsTrace) _logger.Trace($"Setting total on last processed to {lastProcessed.ToString(Block.Format.Short)}");
-                lastProcessed.Header.TotalDifficulty = suggestedBlock.TotalDifficulty;
-            }
-            else
-            {
-                if (_logger.IsDebug) _logger.Debug($"Skipped processing of {suggestedBlock.ToString(Block.Format.FullHashAndNumber)}, last processed is null: {true}, processedBlocks.Length: {processedBlocks.Length}");
-            }
-
-            bool updateHead = !options.ContainsFlag(ProcessingOptions.DoNotUpdateHead);
-            if (updateHead)
-            {
-                if (_logger.IsTrace) _logger.Trace($"Updating main chain: {lastProcessed}, blocks count: {processedBlocks.Length}");
-                _blockTree.UpdateMainChain(processingBranch.Blocks, true);
-            }
-
-            bool notReadOnlyChain = !options.ContainsFlag(ProcessingOptions.ReadOnlyChain);
-            if (notReadOnlyChain)
-            {
-                Metrics.LastBlockProcessingTimeInMs = _stopwatch.ElapsedMilliseconds;
-            }
-
-            if ((options & ProcessingOptions.MarkAsProcessed) == ProcessingOptions.MarkAsProcessed)
-            {
-                if (_logger.IsTrace) _logger.Trace($"Marked blocks as processed {lastProcessed}, blocks count: {processedBlocks.Length}");
-                _blockTree.MarkChainAsProcessed(processingBranch.Blocks);
-
-                Metrics.LastBlockProcessingTimeInMs = _stopwatch.ElapsedMilliseconds;
-            }
-
-            if (!notReadOnlyChain)
-            {
-                _stats.UpdateStats(lastProcessed, _recoveryQueue.Count, _blockQueue.Count);
-            }
-
-            return lastProcessed;
+            return null;
         }
 
         public bool IsProcessingBlocks(ulong? maxProcessingInterval)
