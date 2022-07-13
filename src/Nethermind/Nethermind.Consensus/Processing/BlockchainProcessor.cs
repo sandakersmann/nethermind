@@ -287,6 +287,7 @@ namespace Nethermind.Consensus.Processing
                     _stats.Start();
 
                     Block processedBlock = Process(block, blockRef.ProcessingOptions, _compositeBlockTracer.GetTracer());
+                    _logger.Info($"HIVE processed block {processedBlock}");
 
                     if (processedBlock is null)
                     {
