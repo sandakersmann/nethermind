@@ -50,6 +50,8 @@ namespace Nethermind.Consensus.Processing
 
             public TxReceipt[] ProcessTransactions(Block block, ProcessingOptions processingOptions, BlockReceiptsTracer receiptsTracer, IReleaseSpec spec)
             {
+                _logger.Info($"ProcessTransactions processing block with block.Transactions.Length: {block.Transactions.Length}");
+
                 for (int i = 0; i < block.Transactions.Length; i++)
                 {
                     Transaction currentTx = block.Transactions[i];
@@ -66,7 +68,7 @@ namespace Nethermind.Consensus.Processing
                 try
                 {
                     _transactionProcessor.ProcessTransaction(block, currentTx, receiptsTracer, processingOptions,
-                        _stateProvider);
+                        _stateProvider, _logger);
                 }
                 catch (Exception ex)
                 {
