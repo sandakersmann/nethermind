@@ -252,7 +252,11 @@ namespace Nethermind.Consensus.Processing
 
             _receiptsTracer.SetOtherTracer(blockTracer);
             _receiptsTracer.StartNewBlockTrace(block);
+            if (_logger.IsTrace) _logger.Trace($"ProcessBlock after StartNewBlockTrace");
+
             TxReceipt[] receipts = _blockTransactionsExecutor.ProcessTransactions(block, options, _receiptsTracer, spec);
+            if (_logger.IsTrace) _logger.Trace($"ProcessBlock after ProcessTransactions");
+
             _receiptsTracer.EndBlockTrace();
 
             block.Header.ReceiptsRoot = receipts.GetReceiptsRoot(spec, block.ReceiptsRoot);
