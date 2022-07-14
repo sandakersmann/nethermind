@@ -258,12 +258,21 @@ namespace Nethermind.Consensus.Processing
             if (_logger.IsTrace) _logger.Trace($"ProcessBlock after ProcessTransactions");
 
             _receiptsTracer.EndBlockTrace();
+            if (_logger.IsTrace) _logger.Trace($"ProcessBlock after EndBlockTrace");
+
 
             block.Header.ReceiptsRoot = receipts.GetReceiptsRoot(spec, block.ReceiptsRoot);
+            if (_logger.IsTrace) _logger.Trace($"ProcessBlock after GetReceiptsRoot");
+
             ApplyMinerRewards(block, blockTracer, spec);
+            if (_logger.IsTrace) _logger.Trace($"ProcessBlock after ApplyMinerRewards");
 
             _stateProvider.Commit(spec);
+            if (_logger.IsTrace) _logger.Trace($"ProcessBlock after Commit(spec)");
+
             _stateProvider.RecalculateStateRoot();
+            if (_logger.IsTrace) _logger.Trace($"ProcessBlock after RecalculateStateRoot");
+
 
             block.Header.StateRoot = _stateProvider.StateRoot;
             block.Header.Hash = block.Header.CalculateHash();
