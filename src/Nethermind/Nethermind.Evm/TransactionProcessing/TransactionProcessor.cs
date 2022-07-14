@@ -323,6 +323,8 @@ namespace Nethermind.Evm.TransactionProcessing
             Address? recipientOrNull = null;
             try
             {
+                _logger.Info($"TransactionProcessor in try");
+
                 Address? recipient =
                     transaction.GetRecipient(transaction.IsContractCreation ? _stateProvider.GetNonce(caller) : 0);
                 if (transaction.IsContractCreation)
@@ -331,12 +333,17 @@ namespace Nethermind.Evm.TransactionProcessing
                     Address contractAddress = recipient;
                     PrepareAccountForContractDeployment(contractAddress!, spec);
                 }
+                _logger.Info($"TransactionProcessor after if transaction.IsContractCreation");
+
 
                 if (recipient == null)
                 {
                     // this transaction is not a contract creation so it should have the recipient known and not null
                     throw new InvalidDataException("Recipient has not been resolved properly before tx execution");
                 }
+
+                _logger.Info($"TransactionProcessor after if recipient null");
+
 
                 recipientOrNull = recipient;
 
@@ -384,6 +391,8 @@ namespace Nethermind.Evm.TransactionProcessing
                 }
                 else
                 {
+                    _logger.Info($"TransactionProcessor in else (not substate.ShouldRevert || substate.IsError)");
+
                     // tks: there is similar code fo contract creation from init and from CREATE
                     // this may lead to inconsistencies (however it is tested extensively in blockchain tests)
                     if (transaction.IsContractCreation)
@@ -414,11 +423,15 @@ namespace Nethermind.Evm.TransactionProcessing
                         _stateProvider.DeleteAccount(toBeDestroyed);
                         if (txTracer.IsTracingRefunds) txTracer.ReportRefund(RefundOf.Destroy(spec.IsEip3529Enabled));
                     }
+                    _logger.Info($"TransactionProcessor after destroying addresses");
+
 
                     statusCode = StatusCode.Success;
                 }
 
                 spentGas = Refund(gasLimit, unspentGas, substate, caller, effectiveGasPrice, spec);
+                _logger.Info($"TransactionProcessor after Refund");
+
             }
             catch (Exception ex) when (
                 ex is EvmException || ex is OverflowException) // TODO: OverflowException? still needed? hope not
