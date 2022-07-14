@@ -108,47 +108,80 @@ namespace Nethermind.Evm
             UInt256 previousCallOutputDestination = UInt256.Zero;
             while (true)
             {
+                _logger.Info($"VirtualMachine.Run in while (true)");
+
                 if (!currentState.IsContinuation)
                 {
+                    _logger.Info($"VirtualMachine.Run in if (!currentState.IsContinuation)");
+
                     _returnDataBuffer = Array.Empty<byte>();
                 }
 
+                _logger.Info($"VirtualMachine.Run after if (!currentState.IsContinuation)");
+
+
                 try
                 {
+                    _logger.Info($"VirtualMachine.Run in try");
+
                     CallResult callResult;
                     if (currentState.IsPrecompile)
                     {
+                        _logger.Info($"VirtualMachine.Run in if (currentState.IsPrecompile)");
+
                         if (_txTracer.IsTracingActions)
                         {
+                            _logger.Info($"VirtualMachine.Run in if (_txTracer.IsTracingActions)");
+
                             _txTracer.ReportAction(currentState.GasAvailable, currentState.Env.Value, currentState.From, currentState.To, currentState.Env.InputData, currentState.ExecutionType, true);
                         }
+                        _logger.Info($"VirtualMachine.Run after if (_txTracer.IsTracingActions)");
 
                         callResult = ExecutePrecompile(currentState, spec);
 
                         if (!callResult.PrecompileSuccess.Value)
                         {
+                            _logger.Info($"VirtualMachine.Run in if (!callResult.PrecompileSuccess.Value)");
+
                             if (currentState.IsPrecompile && currentState.IsTopLevel)
                             {
+                                _logger.Info($"VirtualMachine.Run in if (currentState.IsPrecompile && currentState.IsTopLevel)");
+
                                 Metrics.EvmExceptions++;
                                 // TODO: when direct / calls are treated same we should not need such differentiation
                                 throw new PrecompileExecutionFailureException();
                             }
 
+                            _logger.Info($"VirtualMachine.Run after if (currentState.IsPrecompile && currentState.IsTopLevel)");
+
+
                             // TODO: testing it as it seems the way to pass zkSNARKs tests
                             currentState.GasAvailable = 0;
                         }
+                        _logger.Info($"VirtualMachine.Run after if (!callResult.PrecompileSuccess.Value)");
+
                     }
                     else
                     {
+                        _logger.Info($"VirtualMachine.Run in else");
+
                         if (_txTracer.IsTracingActions && !currentState.IsContinuation)
                         {
+                            _logger.Info($"VirtualMachine.Run in if (_txTracer.IsTracingActions && !currentState.IsContinuation)");
+
                             _txTracer.ReportAction(currentState.GasAvailable, currentState.Env.Value, currentState.From, currentState.To, currentState.ExecutionType.IsAnyCreate() ? currentState.Env.CodeInfo.MachineCode : currentState.Env.InputData, currentState.ExecutionType);
                             if (_txTracer.IsTracingCode) _txTracer.ReportByteCode(currentState.Env.CodeInfo.MachineCode);
                         }
+                        _logger.Info($"VirtualMachine.Run after if (_txTracer.IsTracingActions && !currentState.IsContinuation)");
+
 
                         callResult = ExecuteCall(currentState, previousCallResult, previousCallOutput, previousCallOutputDestination, spec);
+                        _logger.Info($"VirtualMachine.Run after ExecuteCall");
+
                         if (!callResult.IsReturn)
                         {
+                            _logger.Info($"VirtualMachine.Run in if (!callResult.IsReturn)");
+
                             _stateStack.Push(currentState);
                             currentState = callResult.StateToExecute;
                             previousCallResult = null; // TODO: testing on ropsten sync, write VirtualMachineTest for this case as it was not covered by Ethereum tests (failing block 9411 on Ropsten https://ropsten.etherscan.io/vmtrace?txhash=0x666194d15c14c54fffafab1a04c08064af165870ef9a87f65711dcce7ed27fe1)
@@ -157,21 +190,38 @@ namespace Nethermind.Evm
                             continue;
                         }
 
+                        _logger.Info($"VirtualMachine.Run after if (!callResult.IsReturn)");
+
+
                         if (callResult.IsException)
                         {
+                            _logger.Info($"VirtualMachine.Run in if (callResult.IsException)");
+
                             if (_txTracer.IsTracingActions) _txTracer.ReportActionError(callResult.ExceptionType);
                             _worldState.Restore(currentState.Snapshot);
 
+                            _logger.Info($"VirtualMachine.Run after _worldState.Restore");
+
+
                             if (_parityTouchBugAccount.ShouldDelete)
                             {
+                                _logger.Info($"VirtualMachine.Run in if (_parityTouchBugAccount.ShouldDelete)");
+
                                 _state.AddToBalance(_parityTouchBugAccount.Address, UInt256.Zero, spec);
                                 _parityTouchBugAccount.ShouldDelete = false;
                             }
+                            _logger.Info($"VirtualMachine.Run after if (_parityTouchBugAccount.ShouldDelete)");
+
 
                             if (currentState.IsTopLevel)
                             {
+                                _logger.Info($"VirtualMachine.Run in if (currentState.IsTopLevel)");
+
                                 return new TransactionSubstate(callResult.ExceptionType, _txTracer != NullTxTracer.Instance);
                             }
+
+                            _logger.Info($"VirtualMachine.Run after if (currentState.IsTopLevel)");
+
 
                             previousCallResult = StatusCode.FailureBytes;
                             previousCallOutputDestination = UInt256.Zero;
@@ -183,6 +233,9 @@ namespace Nethermind.Evm
                             currentState.IsContinuation = true;
                             continue;
                         }
+
+                        _logger.Info($"VirtualMachine.Run after if (callResult.IsException)");
+
                     }
 
                     if (currentState.IsTopLevel)
