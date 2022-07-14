@@ -63,7 +63,15 @@ namespace Nethermind.Consensus.Processing
             private void ProcessTransaction(Block block, Transaction currentTx, int index, BlockReceiptsTracer receiptsTracer, ProcessingOptions processingOptions)
             {
                 _logger.Info($"ProcessTransaction before _transactionProcessor.ProcessTransaction");
-                _transactionProcessor.ProcessTransaction(block, currentTx, receiptsTracer, processingOptions, _stateProvider);
+                try
+                {
+                    _transactionProcessor.ProcessTransaction(block, currentTx, receiptsTracer, processingOptions,
+                        _stateProvider);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Info($"_transactionProcessor.ProcessTransaction exception: {ex}");
+                }
                 _logger.Info($"ProcessTransaction after _transactionProcessor.ProcessTransaction");
 
                 TransactionProcessed?.Invoke(this, new TxProcessedEventArgs(index, currentTx, receiptsTracer.TxReceipts[index]));
