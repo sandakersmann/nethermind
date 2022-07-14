@@ -368,6 +368,8 @@ namespace Nethermind.Evm.TransactionProcessing
                 using (EvmState state =
                     new(unspentGas, env, executionType, true, snapshot, false))
                 {
+                    _logger.Info($"TransactionProcessor on start of using");
+
                     if (spec.UseTxAccessLists)
                     {
                         _logger.Info($"TransactionProcessor before state.WarmUp(transaction.AccessList)");
@@ -375,6 +377,9 @@ namespace Nethermind.Evm.TransactionProcessing
                         _logger.Info($"TransactionProcessor after state.WarmUp(transaction.AccessList)");
 
                     }
+
+                    _logger.Info($"TransactionProcessor after if (spec.UseTxAccessLists)");
+
 
                     if (spec.UseHotAndColdStorage)
                     {
@@ -384,6 +389,8 @@ namespace Nethermind.Evm.TransactionProcessing
                         state.WarmUp(recipient); // eip-2929
                         _logger.Info($"TransactionProcessor after state.WarmUp(recipient)");
                     }
+                    _logger.Info($"TransactionProcessor after if (spec.UseHotAndColdStorage)");
+
 
                     substate = _virtualMachine.Run(state, _worldState, txTracer);
                     _logger.Info($"TransactionProcessor after _virtualMachine.Run");
