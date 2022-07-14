@@ -359,29 +359,47 @@ namespace Nethermind.Evm.TransactionProcessing
                     ? _virtualMachine.GetCachedCodeInfo(_worldState, recipient, spec)
                     : new CodeInfo(machineCode);
 
+                _logger.Info($"TransactionProcessor after env setup");
+
                 ExecutionType executionType =
                     transaction.IsContractCreation ? ExecutionType.Create : ExecutionType.Call;
+                _logger.Info($"TransactionProcessor after executionType");
+
                 using (EvmState state =
                     new(unspentGas, env, executionType, true, snapshot, false))
                 {
                     if (spec.UseTxAccessLists)
                     {
+                        _logger.Info($"TransactionProcessor before state.WarmUp(transaction.AccessList)");
                         state.WarmUp(transaction.AccessList); // eip-2930
+                        _logger.Info($"TransactionProcessor after state.WarmUp(transaction.AccessList)");
+
                     }
 
                     if (spec.UseHotAndColdStorage)
                     {
+                        _logger.Info($"TransactionProcessor before state.WarmUp(caller)");
                         state.WarmUp(caller); // eip-2929
+                        _logger.Info($"TransactionProcessor after state.WarmUp(caller)");
                         state.WarmUp(recipient); // eip-2929
+                        _logger.Info($"TransactionProcessor after state.WarmUp(recipient)");
                     }
 
                     substate = _virtualMachine.Run(state, _worldState, txTracer);
+                    _logger.Info($"TransactionProcessor after _virtualMachine.Run");
+
                     unspentGas = state.GasAvailable;
 
                     if (txTracer.IsTracingAccess)
                     {
+                        _logger.Info($"TransactionProcessor in if txTracer.IsTracingAccess");
+
                         txTracer.ReportAccess(state.AccessedAddresses, state.AccessedStorageCells);
+                        _logger.Info($"TransactionProcessor after ReportAccess");
+
                     }
+                    _logger.Info($"TransactionProcessor after if txTracer.IsTracingAccess");
+
                 }
 
                 if (substate.ShouldRevert || substate.IsError)
