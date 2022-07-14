@@ -649,6 +649,7 @@ namespace Nethermind.Evm
         [SkipLocalsInit]
         private CallResult ExecuteCall(EvmState vmState, byte[]? previousCallResult, ZeroPaddedSpan previousCallOutput, in UInt256 previousCallOutputDestination, IReleaseSpec spec)
         {
+            _logger.Info($"VirtualMachine.ExecuteCall");
             bool isTrace = _logger.IsTrace;
             bool traceOpcodes = _txTracer.IsTracingInstructions;
             ExecutionEnvironment env = vmState.Env;
@@ -656,27 +657,48 @@ namespace Nethermind.Evm
 
             if (!vmState.IsContinuation)
             {
+                _logger.Info($"VirtualMachine.ExecuteCall in if (!vmState.IsContinuation)");
+
                 if (!_state.AccountExists(env.ExecutingAccount))
                 {
+                    _logger.Info($"VirtualMachine.ExecuteCall in if (!_state.AccountExists(env.ExecutingAccount))");
+
                     _state.CreateAccount(env.ExecutingAccount, env.TransferValue);
                 }
                 else
                 {
+                    _logger.Info($"VirtualMachine.ExecuteCall in else (!_state.AccountExists(env.ExecutingAccount))");
+
                     _state.AddToBalance(env.ExecutingAccount, env.TransferValue, spec);
                 }
+                _logger.Info($"VirtualMachine.ExecuteCall after if (!_state.AccountExists(env.ExecutingAccount))");
+
 
                 if (vmState.ExecutionType.IsAnyCreate() && spec.ClearEmptyAccountWhenTouched)
                 {
+                    _logger.Info($"VirtualMachine.ExecuteCall in if (vmState.ExecutionType.IsAnyCreate() && spec.ClearEmptyAccountWhenTouched)");
+
                     _state.IncrementNonce(env.ExecutingAccount);
                 }
+                _logger.Info($"VirtualMachine.ExecuteCall after if (vmState.ExecutionType.IsAnyCreate() && spec.ClearEmptyAccountWhenTouched)");
+
             }
+            _logger.Info($"VirtualMachine.ExecuteCall after if (!vmState.IsContinuation)");
+
 
             if (vmState.Env.CodeInfo.MachineCode.Length == 0)
             {
+                _logger.Info($"VirtualMachine.ExecuteCall in if (vmState.Env.CodeInfo.MachineCode.Length == 0)");
+
                 return CallResult.Empty;
             }
 
+            _logger.Info($"VirtualMachine.ExecuteCall after if (vmState.Env.CodeInfo.MachineCode.Length == 0)");
+
+
             vmState.InitStacks();
+            _logger.Info($"VirtualMachine.ExecuteCall after vmState.InitStacks");
+
             EvmStack stack = new(vmState.DataStack.AsSpan(), vmState.DataStackHead, _txTracer);
             long gasAvailable = vmState.GasAvailable;
             int programCounter = vmState.ProgramCounter;
@@ -789,8 +811,12 @@ namespace Nethermind.Evm
 //                if(_txTracer.IsTracingInstructions) _txTracer.ReportMemoryChange((long)localPreviousDest, previousCallOutput);
             }
 
+            _logger.Info($"VirtualMachine.ExecuteCall just before while");
+
             while (programCounter < code.Length)
             {
+                _logger.Info($"VirtualMachine.ExecuteCall in while");
+
                 Instruction instruction = (Instruction) code[programCounter];
                 // Console.WriteLine(instruction);
                 if (traceOpcodes)
@@ -2995,6 +3021,8 @@ namespace Nethermind.Evm
 
                 EndInstructionTrace();
             }
+            _logger.Info($"VirtualMachine.ExecuteCall just after while");
+
 
             UpdateCurrentState(vmState, programCounter, gasAvailable, stack.Head);
             return CallResult.Empty;
