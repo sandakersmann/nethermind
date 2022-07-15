@@ -815,7 +815,7 @@ namespace Nethermind.Evm
 
             while (programCounter < code.Length)
             {
-                _logger.Info($"VirtualMachine.ExecuteCall in while");
+                _logger.Info($"VirtualMachine.ExecuteCall in while. Program counter: {programCounter}, code: {code.Length}");
 
                 Instruction instruction = (Instruction) code[programCounter];
                 // Console.WriteLine(instruction);
