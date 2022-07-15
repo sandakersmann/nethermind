@@ -238,6 +238,7 @@ namespace Nethermind.Hive
                 {
                     if (_tracer.Trace(block, NullBlockTracer.Instance) is null)
                     {
+                        _logger.Info($"HIVE Tracer return null for block: {block.Hash}");
                         return;
                     }
                 }
