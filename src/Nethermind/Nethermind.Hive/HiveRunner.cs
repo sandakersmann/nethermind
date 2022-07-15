@@ -24,9 +24,11 @@ using System.Threading.Tasks;
 using Nethermind.Blockchain;
 using Nethermind.Config;
 using Nethermind.Consensus.Processing;
+using Nethermind.Consensus.Tracing;
 using Nethermind.Consensus.Validators;
 using Nethermind.Core;
 using Nethermind.Core.Extensions;
+using Nethermind.Evm.Tracing;
 using Nethermind.Logging;
 using Nethermind.Serialization.Rlp;
 
@@ -40,6 +42,7 @@ namespace Nethermind.Hive
         private readonly IConfigProvider _configurationProvider;
         private readonly IFileSystem _fileSystem;
         private readonly IBlockValidator _blockValidator;
+        private readonly ITracer _tracer;
         private readonly SemaphoreSlim _resetEvent;
 
         public HiveRunner(
@@ -48,7 +51,8 @@ namespace Nethermind.Hive
             IConfigProvider configurationProvider,
             ILogger logger,
             IFileSystem fileSystem,
-            IBlockValidator blockValidator)
+            IBlockValidator blockValidator,
+            ITracer tracer)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _blockTree = blockTree ?? throw new ArgumentNullException(nameof(blockTree));
@@ -56,6 +60,7 @@ namespace Nethermind.Hive
             _configurationProvider = configurationProvider ?? throw new ArgumentNullException(nameof(configurationProvider));
             _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
             _blockValidator = blockValidator;
+            _tracer = tracer;
 
             _resetEvent = new SemaphoreSlim(0);
         }
@@ -226,6 +231,19 @@ namespace Nethermind.Hive
                 {
                     if (_logger.IsError)
                         _logger.Error($"Cannot add block {block} to the blockTree, add result {result}");
+                    return;
+                }
+
+                try
+                {
+                    if (_tracer.Trace(block, NullBlockTracer.Instance) is null)
+                    {
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (_logger.IsError) _logger.Error($"Failed to process block {block}", ex);
                     return;
                 }
 
