@@ -161,15 +161,7 @@ namespace Nethermind.Evm
                             if (_txTracer.IsTracingActions) _txTracer.ReportActionError(callResult.ExceptionType);
                             _worldState.Restore(currentState.Snapshot);
 
-                            if (_parityTouchBugAccount.ShouldDelete)
-                            {
-                                if (_state.AccountExists(_parityTouchBugAccount.Address))
-                                {
-                                    _state.AddToBalance(_parityTouchBugAccount.Address, UInt256.Zero, spec);
-                                }
-
-                                _parityTouchBugAccount.ShouldDelete = false;
-                            }
+                            RevertParityTouchBugAccount(spec);
 
                             if (currentState.IsTopLevel)
                             {
@@ -340,17 +332,13 @@ namespace Nethermind.Evm
 
                     previousState.Dispose();
                 }
-                catch (Exception ex) when (ex is EvmException || ex is OverflowException)
+                catch (Exception ex) when (ex is EvmException or OverflowException)
                 {
                     if (_logger.IsTrace) _logger.Trace($"exception ({ex.GetType().Name}) in {currentState.ExecutionType} at depth {currentState.Env.CallDepth} - restoring snapshot");
 
                     _worldState.Restore(currentState.Snapshot);
 
-                    if (_parityTouchBugAccount.ShouldDelete)
-                    {
-                        _state.AddToBalance(_parityTouchBugAccount.Address, UInt256.Zero, spec);
-                        _parityTouchBugAccount.ShouldDelete = false;
-                    }
+                    RevertParityTouchBugAccount(spec);
 
                     if (txTracer.IsTracingInstructions)
                     {
@@ -378,6 +366,19 @@ namespace Nethermind.Evm
                     currentState = _stateStack.Pop();
                     currentState.IsContinuation = true;
                 }
+            }
+        }
+
+        private void RevertParityTouchBugAccount(IReleaseSpec spec)
+        {
+            if (_parityTouchBugAccount.ShouldDelete)
+            {
+                if (_state.AccountExists(_parityTouchBugAccount.Address))
+                {
+                    _state.AddToBalance(_parityTouchBugAccount.Address, UInt256.Zero, spec);
+                }
+
+                _parityTouchBugAccount.ShouldDelete = false;
             }
         }
 
