@@ -18,6 +18,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
@@ -68,12 +69,21 @@ public class DbOnTheRocks : IDbWithSpan
         }
     }
 
-    private static readonly Dictionary<string, string> MissingNativeLibraryNameMapping = new() { { "libdl", "libdl.so.2" } };
+    private static IntPtr OnResolvingUnmanagedDll(Assembly _, string nativeLibraryName)
+    {
+        const string MacosSnappyPath = "/opt/homebrew/Cellar/snappy";
 
-    private static IntPtr OnResolvingUnmanagedDll(Assembly _, string nativeLibraryName) =>
-        MissingNativeLibraryNameMapping.ContainsKey(nativeLibraryName)
-            ? NativeLibrary.Load(MissingNativeLibraryNameMapping[nativeLibraryName])
-            : IntPtr.Zero;
+        var alternativePath = nativeLibraryName switch
+        {
+            "libdl" => "libdl.so.2",
+            "libsnappy.so" => "libsnappy.so.1",
+            "libbz2.so.1.0" => "libbz2.so.1",
+            "libsnappy.dylib" => Directory.Exists(MacosSnappyPath) ?
+                Directory.EnumerateFiles(MacosSnappyPath, "libsnappy.dylib", SearchOption.AllDirectories).FirstOrDefault() : null,
+            _ => null
+        };
+        return alternativePath is null ? IntPtr.Zero : NativeLibrary.Load(alternativePath);
+    }
 
     static DbOnTheRocks() => AssemblyLoadContext.GetLoadContext(typeof(RocksDb).Assembly)!.ResolvingUnmanagedDll += OnResolvingUnmanagedDll;
 
