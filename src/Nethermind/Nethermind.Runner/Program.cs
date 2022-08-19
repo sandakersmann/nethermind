@@ -202,7 +202,6 @@ namespace Nethermind.Runner
         private static IntPtr OnResolvingUnmanagedDll(Assembly _, string nativeLibraryName)
         {
             const string MacosSnappyPath = "/opt/homebrew/Cellar/snappy";
-
             var alternativePath = nativeLibraryName switch
             {
                 "libdl" => "libdl.so.2",
@@ -211,6 +210,9 @@ namespace Nethermind.Runner
                     Directory.EnumerateFiles(MacosSnappyPath, "libsnappy.dylib", SearchOption.AllDirectories).FirstOrDefault() : "libsnappy.so.1",
                 _ => null
             };
+
+            Console.WriteLine($"LOADING FAILURE: {nativeLibraryName}, trying {alternativePath}");
+
             return alternativePath is null ? IntPtr.Zero : NativeLibrary.Load(alternativePath);
         }
 
