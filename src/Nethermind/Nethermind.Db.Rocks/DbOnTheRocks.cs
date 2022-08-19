@@ -18,7 +18,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 using System.Threading;
 using Nethermind.Core;
 using Nethermind.Db.Rocks.Config;
@@ -65,6 +68,23 @@ public class DbOnTheRocks : IDbWithSpan
             Interlocked.Add(ref _maxRocksSize, (long)dbConfig.BlockCacheSize);
         }
     }
+
+    private const string MacosSnappyPath = "/opt/homebrew/Cellar/snappy";
+
+    private static IntPtr OnResolvingUnmanagedDll(Assembly _, string nativeLibraryName)
+    {
+        var alternativePath = nativeLibraryName switch
+        {
+            "libdl" => "libdl.so.2",
+            "libsnappy.so" => "libsnappy.so.1",
+            "libbz2.so.1.0" => "libbz2.so.1",
+            "libsnappy" => Directory.Exists(MacosSnappyPath) ? Directory.EnumerateFiles(MacosSnappyPath, "libsnappy.dylib", SearchOption.AllDirectories).FirstOrDefault(),
+            _ => null
+        };
+        return alternativePath is null ? IntPtr.Zero : NativeLibrary.Load(alternativePath);
+    }
+
+    static DbOnTheRocks() => AssemblyLoadContext.GetLoadContext(typeof(RocksDb).Assembly)!.ResolvingUnmanagedDll += OnResolvingUnmanagedDll;
 
     public DbOnTheRocks(string basePath, RocksDbSettings rocksDbSettings, IDbConfig dbConfig,
         ILogManager logManager, ColumnFamilies? columnFamilies = null)
