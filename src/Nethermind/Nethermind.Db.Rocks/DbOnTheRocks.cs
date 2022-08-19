@@ -68,22 +68,23 @@ public class DbOnTheRocks : IDbWithSpan
         }
     }
 
-    public DbOnTheRocks(string basePath, RocksDbSettings rocksDbSettings, IDbConfig dbConfig,
-        ILogManager logManager, ColumnFamilies? columnFamilies = null)
-    {
-        _logger = logManager.GetClassLogger();
-        _settings = rocksDbSettings;
-        Name = _settings.DbName;
-        AssemblyLoadContext.GetLoadContext(typeof(RocksDb).Assembly)!.ResolvingUnmanagedDll += OnResolvingUnmanagedDll;
-        _db = Init(basePath, rocksDbSettings.DbPath, dbConfig, logManager, columnFamilies, rocksDbSettings.DeleteOnStart);
-    }
-
     private static readonly Dictionary<string, string> MissingNativeLibraryNameMapping = new() { { "libdl", "libdl.so.2" } };
 
     private static IntPtr OnResolvingUnmanagedDll(Assembly _, string nativeLibraryName) =>
         MissingNativeLibraryNameMapping.ContainsKey(nativeLibraryName)
             ? NativeLibrary.Load(MissingNativeLibraryNameMapping[nativeLibraryName])
             : IntPtr.Zero;
+
+    static DbOnTheRocks() => AssemblyLoadContext.GetLoadContext(typeof(RocksDb).Assembly)!.ResolvingUnmanagedDll += OnResolvingUnmanagedDll;
+
+    public DbOnTheRocks(string basePath, RocksDbSettings rocksDbSettings, IDbConfig dbConfig,
+        ILogManager logManager, ColumnFamilies? columnFamilies = null)
+    {
+        _logger = logManager.GetClassLogger();
+        _settings = rocksDbSettings;
+        Name = _settings.DbName;
+        _db = Init(basePath, rocksDbSettings.DbPath, dbConfig, logManager, columnFamilies, rocksDbSettings.DeleteOnStart);
+    }
 
     private RocksDb Init(string basePath, string dbPath, IDbConfig dbConfig, ILogManager? logManager,
         ColumnFamilies? columnFamilies = null, bool deleteOnStart = false)
@@ -443,7 +444,6 @@ public class DbOnTheRocks : IDbWithSpan
             _dbOnTheRocks._db.Write(_rocksBatch, _dbOnTheRocks.WriteOptions);
             _dbOnTheRocks._currentBatches.Remove(this);
             _rocksBatch.Dispose();
-            AssemblyLoadContext.GetLoadContext(typeof(RocksDb).Assembly)!.ResolvingUnmanagedDll -= OnResolvingUnmanagedDll;
             GC.SuppressFinalize(this);
         }
 
