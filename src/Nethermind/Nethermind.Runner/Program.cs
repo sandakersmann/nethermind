@@ -204,14 +204,12 @@ namespace Nethermind.Runner
             const string MacosSnappyPath = "/opt/homebrew/Cellar/snappy";
             var alternativePath = nativeLibraryName switch
             {
-                "libdl" => "libdl.so.2",
+                "libdl" or "liblibdl" => "libdl.so.2",
                 "libbz2.so.1.0" => "libbz2.so.1",
                 "libsnappy" or "snappy" => Directory.Exists(MacosSnappyPath) ?
                     Directory.EnumerateFiles(MacosSnappyPath, "libsnappy.dylib", SearchOption.AllDirectories).FirstOrDefault() : "libsnappy.so.1",
                 _ => null
             };
-
-            Console.WriteLine($"LOADING FAILURE: {nativeLibraryName}, trying {alternativePath}");
 
             return alternativePath is null ? IntPtr.Zero : NativeLibrary.Load(alternativePath);
         }
