@@ -206,7 +206,7 @@ namespace Nethermind.Runner
             var alternativePath = nativeLibraryName switch
             {
                 "libdl" => "libdl.so.2",
-                "libsnappy.so" => "libsnappy.so.1",
+                "libsnappy" => "libsnappy.so.1",
                 "libbz2.so.1.0" => "libbz2.so.1",
                 "libsnappy.dylib" => Directory.Exists(MacosSnappyPath) ?
                     Directory.EnumerateFiles(MacosSnappyPath, "libsnappy.dylib", SearchOption.AllDirectories).FirstOrDefault() : null,
