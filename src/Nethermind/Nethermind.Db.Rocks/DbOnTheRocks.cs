@@ -19,6 +19,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 using System.Threading;
 using Nethermind.Core;
 using Nethermind.Db.Rocks.Config;
@@ -72,8 +74,16 @@ public class DbOnTheRocks : IDbWithSpan
         _logger = logManager.GetClassLogger();
         _settings = rocksDbSettings;
         Name = _settings.DbName;
+        AssemblyLoadContext.GetLoadContext(typeof(RocksDb).Assembly)!.ResolvingUnmanagedDll += OnResolvingUnmanagedDll;
         _db = Init(basePath, rocksDbSettings.DbPath, dbConfig, logManager, columnFamilies, rocksDbSettings.DeleteOnStart);
     }
+
+    private static readonly Dictionary<string, string> MissingNativeLibraryNameMapping = new() { { "libdl", "libdl.so.2" } };
+
+    private static IntPtr OnResolvingUnmanagedDll(Assembly _, string nativeLibraryName) =>
+        MissingNativeLibraryNameMapping.ContainsKey(nativeLibraryName)
+            ? NativeLibrary.Load(MissingNativeLibraryNameMapping[nativeLibraryName])
+            : IntPtr.Zero;
 
     private RocksDb Init(string basePath, string dbPath, IDbConfig dbConfig, ILogManager? logManager,
         ColumnFamilies? columnFamilies = null, bool deleteOnStart = false)
@@ -433,6 +443,7 @@ public class DbOnTheRocks : IDbWithSpan
             _dbOnTheRocks._db.Write(_rocksBatch, _dbOnTheRocks.WriteOptions);
             _dbOnTheRocks._currentBatches.Remove(this);
             _rocksBatch.Dispose();
+            AssemblyLoadContext.GetLoadContext(typeof(RocksDb).Assembly)!.ResolvingUnmanagedDll -= OnResolvingUnmanagedDll;
             GC.SuppressFinalize(this);
         }
 
